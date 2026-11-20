@@ -99,7 +99,19 @@ Requires a defect and the current process parameters:
 }
 ```
 
-`desc` accepts stable codes such as `SHORTSHOT`, `FLASH`, `SHRINKAGE`, `BURN`, `WELDLINE`, `WARPING` (25 codes in total — call `schema` for the full list). `level` accepts `轻微` / `中等` / `严重` or a number from 0 to 1.
+`desc` accepts stable codes such as `SHORTSHOT`, `FLASH`, `SHRINKAGE`, `BURN`, `WELDLINE`, `WARPING` (25 codes in total — call `schema` for the full list).
+
+`level` accepts an English enum or a number from 0 to 1 (no Chinese values):
+
+| Value | Meaning |
+|---|---|
+| `none` | No defect — the row is dropped |
+| `mild` | Minor defect |
+| `moderate` | Medium defect |
+| `severe` | Serious defect |
+| `critical` | Very serious defect |
+
+The gateway translates these to the engine's internal severity values. Invalid levels are rejected with `400 INVALID_FIELD` and do not consume quota.
 
 ## Design notes
 
