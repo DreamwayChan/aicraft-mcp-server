@@ -113,6 +113,36 @@ Requires a defect and the current process parameters:
 
 The gateway translates these to the engine's internal severity values. Invalid levels are rejected with `400 INVALID_FIELD` and do not consume quota.
 
+## Understanding the result
+
+A successful call returns three layers, so you never have to guess what a code like `IP0` means:
+
+1. **`summary`** — a one-paragraph, human-readable sentence. Read this aloud to the user.
+2. **`parameters`** — one entry per process value with `key`, `name` (full English name), `value`, `unit`, and `group`. Use `name` when explaining a value.
+3. **`data`** — the raw `key -> value` map, intended for writing settings back to a machine. Keys are abbreviations; humans should use `summary` or `parameters` instead.
+
+Example `parameters` entry:
+
+```json
+{"key": "NT", "name": "Nozzle temperature", "value": 280, "unit": "C", "group": "temperature"}
+```
+
+Common key groups (full dictionary for every key is available from the free `schema` tool under `parameters`):
+
+| Prefix | Meaning |
+|---|---|
+| `NT`, `BT1`..`BT4` | Nozzle temperature, barrel temperature zones |
+| `IP0`..`IP5` | Injection pressure, stage 0..5 |
+| `IV0`..`IV5` | Injection velocity, stage 0..5 |
+| `IL0`..`IL5` | Injection stroke end position, stage 0..5 |
+| `PP0`..`PP4`, `PV0`..`PV4`, `PT0`..`PT4` | Holding pressure / velocity / time |
+| `MP0`..`MP3`, `MSR0`..`MSR3`, `MBP0`..`MBP3`, `ML0`..`ML3` | Metering pressure / screw speed / back pressure / position |
+| `VPTL`, `VPTT`, `VPTP`, `VPTV` | V/P switch position, time, pressure, velocity |
+| `CT`, `IT`, `ID`, `MD`, `MEL` | Cooling time, injection time/delay, metering delay/end |
+| `DPBM`..`DTBM`, `DPAM`..`DTAM` | Decompression before / after metering (pressure, velocity, distance, time) |
+
+Default units: mm, mm/s, MPa, rpm, °C, s. A request can override them with `pressure_unit`, `velocity_unit`, `position_unit`, and `screw_rotation_unit`.
+
 ## Design notes
 
 - **Stdio transport**, protocol version `2024-11-05` for broad client compatibility.
