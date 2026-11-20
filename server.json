@@ -1,20 +1,17 @@
 {
-  "name": "io.github.aicraft/injection-process",
-  "description": "First-shot process recommendation and defect-driven tuning API for injection molding.",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.DreamwayChan/injection-process",
+  "title": "AICraft Injection Process",
+  "description": "Injection molding first-shot recommendation and defect-driven tuning API.",
   "version": "1.0.0",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/DreamwayChan/aicraft-mcp-server"
+    "url": "https://github.com/DreamwayChan/aicraft-mcp-server",
+    "source": "github"
   },
   "remotes": [
     {
       "type": "streamable-http",
       "url": "https://aicraft4injection.com/mcp"
     }
-  ],
-  "tools": ["schema", "first_shot", "optimize"],
-  "transport": "stdio",
-  "requirements": {
-    "python": ">=3.10"
-  }
+  ]
 }
