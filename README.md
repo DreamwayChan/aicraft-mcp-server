@@ -94,7 +94,7 @@ Requires a defect and the current process parameters:
 
 ```json
 {
-  "defect_info": [{"desc": "FLASH", "level": "中等"}],
+  "defect_info": [{"desc": "FLASH", "level": "moderate"}],
   "current_params": {"IP0": 90, "IV0": 40, "PP0": 50, "CT": 12}
 }
 ```
