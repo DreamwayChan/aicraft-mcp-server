@@ -1,0 +1,20 @@
+{
+  "name": "io.github.aicraft/injection-process",
+  "description": "First-shot process recommendation and defect-driven tuning API for injection molding.",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/REPLACE_OWNER/aicraft-mcp-server"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://aicraft4injection.com/mcp"
+    }
+  ],
+  "tools": ["schema", "first_shot", "optimize"],
+  "transport": "stdio",
+  "requirements": {
+    "python": ">=3.10"
+  }
+}
