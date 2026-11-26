@@ -1,0 +1,767 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Injection Process API",
+    "version": "1",
+    "description": "Two paid calls. Read GET /v1/schema for the field catalog, defect codes, and error codes. That call is free. Units default to mm, mm/s, and MPa. Send Authorization: Bearer <api key>."
+  },
+  "servers": [
+    {
+      "url": "https://aicraft4injection.com"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "apiKey": []
+    }
+  ],
+  "paths": {
+    "/v1/first-shot": {
+      "post": {
+        "operationId": "firstShot",
+        "summary": "Recommend a first-shot process. Costs 1 call.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "polymer",
+                  "mold",
+                  "machine"
+                ],
+                "properties": {
+                  "polymer": {
+                    "type": "object",
+                    "required": [
+                      "polymer_abbreviation"
+                    ],
+                    "properties": {
+                      "polymer_abbreviation": {
+                        "type": "string",
+                        "description": "Material short name, for example PC or ABS."
+                      },
+                      "melt_density": {
+                        "type": "number",
+                        "description": "Melt density, g/cm3."
+                      },
+                      "recommend_back_pressure": {
+                        "type": "number",
+                        "description": "Recommended back pressure, MPa."
+                      },
+                      "drying_temp_c": {
+                        "type": "number",
+                        "description": "Drying temperature, Celsius."
+                      }
+                    }
+                  },
+                  "mold": {
+                    "type": "object",
+                    "required": [
+                      "product_ave_thickness"
+                    ],
+                    "properties": {
+                      "product_ave_thickness": {
+                        "type": "number",
+                        "description": "Average wall thickness, mm. Greater than 0 and less than 50."
+                      },
+                      "gate_thickness": {
+                        "type": "number",
+                        "description": "Gate thickness, mm."
+                      },
+                      "product_max_length": {
+                        "type": "number",
+                        "description": "Longest flow length, mm."
+                      },
+                      "single_cavity_part_weight_g": {
+                        "type": "number",
+                        "description": "Single cavity part weight in g. With cavity_num and runner_weight this gives shot mass, enabling physical VPTL/stroke calculation instead of a range midpoint."
+                      },
+                      "cavity_num": {
+                        "type": "integer",
+                        "description": "Number of cavities."
+                      },
+                      "runner_weight": {
+                        "type": "number",
+                        "description": "Runner/sprue weight in g."
+                      },
+                      "product_total_weight": {
+                        "type": "number",
+                        "description": "Total product weight in g (alternative to single_cavity x cavity_num)."
+                      }
+                    }
+                  },
+                  "machine": {
+                    "type": "object",
+                    "required": [
+                      "injector"
+                    ],
+                    "properties": {
+                      "machine_clamp_force_ton": {
+                        "type": "number",
+                        "description": "Clamp force, tons."
+                      },
+                      "injector": {
+                        "type": "object",
+                        "required": [
+                          "injector_screw_diameter_mm"
+                        ],
+                        "properties": {
+                          "injector_screw_diameter_mm": {
+                            "type": "number",
+                            "description": "Screw diameter, mm."
+                          },
+                          "injector_max_injection_stroke_mm": {
+                            "type": "number",
+                            "description": "Maximum injection stroke, mm."
+                          },
+                          "machine_barrel_temperature_stage": {
+                            "type": "integer",
+                            "description": "Number of barrel temperature zones."
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "init_strategy": {
+                    "type": "string",
+                    "enum": [
+                      "profile",
+                      "midpoint",
+                      "auto",
+                      "legacy"
+                    ],
+                    "default": "profile"
+                  },
+                  "business_id": {
+                    "type": "string",
+                    "description": "Your own business ID for this process (mould/part/job number), e.g. MOLD-A-100. The server adds a unique per-subscriber prefix automatically - do NOT add a prefix. Returned as process_no in the result; reuse it for later optimize calls."
+                  },
+                  "target_shot_weight_g": {
+                    "type": "number",
+                    "description": "Target shot weight in g, including runner. If provided, physical stroke/VPTL is computed from it. Strongly recommended for realistic first-shot positions."
+                  }
+                }
+              },
+              "example": {
+                "polymer": {
+                  "polymer_abbreviation": "PC",
+                  "melt_density": 1.05
+                },
+                "mold": {
+                  "product_ave_thickness": 2.0,
+                  "gate_thickness": 1.2,
+                  "product_max_length": 180
+                },
+                "machine": {
+                  "machine_clamp_force_ton": 180,
+                  "injector": {
+                    "injector_screw_diameter_mm": 36,
+                    "injector_max_injection_stroke_mm": 160
+                  }
+                },
+                "business_id": "MOLD-A-100"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Process parameters, a short summary, and the remaining monthly quota.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Successful calculation result.",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "description": "0 means success."
+                    },
+                    "msg": {
+                      "type": "string",
+                      "description": "ok or an error message."
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "OK or a stable error code such as MISSING_FIELD."
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "Short human-readable summary of the recommended or adjusted process, with units."
+                    },
+                    "parameters": {
+                      "type": "array",
+                      "description": "Recommended or adjusted process parameters, each with a unit.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "Machine-readable parameter key, e.g. IP0."
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Full English name of the parameter."
+                          },
+                          "value": {
+                            "type": "number",
+                            "description": "Parameter value."
+                          },
+                          "unit": {
+                            "type": "string",
+                            "description": "Unit of the value, e.g. MPa, mm/s, C, s."
+                          },
+                          "group": {
+                            "type": "string",
+                            "description": "Logical group, e.g. injection, holding, temperature."
+                          }
+                        }
+                      }
+                    },
+                    "quota_charged": {
+                      "type": "boolean",
+                      "description": "Whether this call consumed one quota unit."
+                    },
+                    "quota_remaining": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Remaining monthly quota, or null if unauthenticated."
+                    },
+                    "api_version": {
+                      "type": "string",
+                      "description": "API version, currently 1."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "MISSING_FIELD, INVALID_FIELD, or UNKNOWN_DEFECT. No quota is charged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Error result. No quota is charged for validation errors.",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "description": "Non-zero on error."
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "Stable error code, e.g. MISSING_FIELD, UNKNOWN_DEFECT, UNAUTHENTICATED, QUOTA_EXCEEDED."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable error message."
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Fields that failed validation."
+                    },
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Suggested fixes."
+                    },
+                    "quota_charged": {
+                      "type": "boolean",
+                      "description": "false for all validation errors."
+                    },
+                    "quota_remaining": {
+                      "type": "integer",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Recommend first-shot process settings before any trial. Costs 1 call. Required: polymer.polymer_abbreviation, mold.product_ave_thickness, machine.injector.injector_screw_diameter_mm. Pass business_id (your job ID, no prefix) to store the process; the result returns process_no for a later optimize call. Strongly recommended: shot mass via target_shot_weight_g or mold.single_cavity_part_weight_g+cavity_num+runner_weight, otherwise screw positions (VPTL/MEL/IL) are range midpoints. machine_barrel_temperature_stage is a COUNT of zones (4 or 5), not a temperature; product_max_length is flow length in mm (100-500), not wall thickness."
+      }
+    },
+    "/v1/optimize": {
+      "post": {
+        "operationId": "optimize",
+        "summary": "Adjust the current process for a defect. Costs 1 call.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "defect_info"
+                ],
+                "properties": {
+                  "defect_info": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "desc",
+                        "level"
+                      ],
+                      "properties": {
+                        "desc": {
+                          "type": "string",
+                          "enum": [
+                            "SHORTSHOT",
+                            "FLASH",
+                            "SHRINKAGE",
+                            "BURN",
+                            "WELDLINE",
+                            "OVERSIZE",
+                            "UNDERSIZE",
+                            "JETTING",
+                            "AIRTRAP",
+                            "GASVEINS",
+                            "MATERIALFLOWER",
+                            "ABERRATION",
+                            "TOPWHITE",
+                            "HARDDEMOLDING",
+                            "WARPING",
+                            "GATEMARK",
+                            "SHADING",
+                            "DELAYEDFLOW",
+                            "HEAVYWEIGHT",
+                            "LIGHTWEIGHT",
+                            "GATEHEIGHT",
+                            "SOFTWATEROUTLET",
+                            "FIBERFLOATATION",
+                            "WIREDRAWING",
+                            "SCREWZERO"
+                          ]
+                        },
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "mild",
+                            "moderate",
+                            "severe",
+                            "critical"
+                          ],
+                          "description": "Defect severity. Use one of the enum values, or a number from 0 to 1."
+                        }
+                      }
+                    }
+                  },
+                  "current_params": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "description": "Optional. If business_id or process_no is given, the server loads the previous process from the archive and this can be omitted. If provided, copy EVERY key/value from the first_shot 'parameters' array; sending only a few keys (NT/IP0/CT) gives wrong results. Units are algorithm defaults (mm, mm/s, MPa, C, s).",
+                    "additionalProperties": true,
+                    "properties": {
+                      "injection_stage": {
+                        "type": "integer",
+                        "description": "Number of injection stages. Inferred from IPn/IVn/ILn if omitted."
+                      },
+                      "holding_stage": {
+                        "type": "integer",
+                        "description": "Number of holding stages. Inferred from PPn/PVn/PTn if omitted."
+                      },
+                      "metering_stage": {
+                        "type": "integer",
+                        "description": "Number of metering stages. Inferred from MPn/MSRn/MBPn/MLn if omitted."
+                      },
+                      "barrel_temperature_stage": {
+                        "type": "integer",
+                        "description": "Temperature zones including nozzle (NT is zone 0). Inferred from NT/BTn if omitted."
+                      },
+                      "NT": {
+                        "type": "number"
+                      },
+                      "IP0": {
+                        "type": "number"
+                      },
+                      "IV0": {
+                        "type": "number"
+                      },
+                      "PP0": {
+                        "type": "number"
+                      },
+                      "PT0": {
+                        "type": "number"
+                      },
+                      "CT": {
+                        "type": "number"
+                      },
+                      "VPTL": {
+                        "type": "number"
+                      },
+                      "MEL": {
+                        "type": "number"
+                      },
+                      "IP1": {
+                        "type": "number",
+                        "description": "Injection pressure stage 1 in MPa. Copy from first_shot parameters."
+                      },
+                      "IP2": {
+                        "type": "number",
+                        "description": "Injection pressure stage 2 in MPa. Copy from first_shot parameters."
+                      },
+                      "IV1": {
+                        "type": "number",
+                        "description": "Injection velocity stage 1 in mm/s. Copy from first_shot parameters."
+                      },
+                      "IV2": {
+                        "type": "number",
+                        "description": "Injection velocity stage 2 in mm/s. Copy from first_shot parameters."
+                      },
+                      "IL0": {
+                        "type": "number",
+                        "description": "Injection stroke end stage 0 in mm. Copy from first_shot parameters."
+                      },
+                      "IL1": {
+                        "type": "number",
+                        "description": "Injection stroke end stage 1 in mm. Copy from first_shot parameters."
+                      },
+                      "IL2": {
+                        "type": "number",
+                        "description": "Injection stroke end stage 2 in mm; must equal VPTL."
+                      },
+                      "ML0": {
+                        "type": "number",
+                        "description": "Metering (plasticizing) end position in mm. CRITICAL: if missing, MEL/VPTL/IL positions collapse to near zero."
+                      },
+                      "DDAM": {
+                        "type": "number",
+                        "description": "Decompression distance after metering in mm. Defaults to 5 if omitted."
+                      },
+                      "BT1": {
+                        "type": "number",
+                        "description": "Barrel temperature zone 1 in Celsius."
+                      },
+                      "BT2": {
+                        "type": "number",
+                        "description": "Barrel temperature zone 2 in Celsius."
+                      },
+                      "BT3": {
+                        "type": "number",
+                        "description": "Barrel temperature zone 3 in Celsius."
+                      },
+                      "BT4": {
+                        "type": "number",
+                        "description": "Barrel temperature zone 4 in Celsius."
+                      },
+                      "PT1": {
+                        "type": "number",
+                        "description": "Holding time stage 1 in s."
+                      },
+                      "PV0": {
+                        "type": "number",
+                        "description": "Holding velocity stage 0 in mm/s."
+                      },
+                      "PV1": {
+                        "type": "number",
+                        "description": "Holding velocity stage 1 in mm/s."
+                      },
+                      "PP1": {
+                        "type": "number",
+                        "description": "Holding pressure stage 1 in MPa."
+                      },
+                      "MP0": {
+                        "type": "number",
+                        "description": "Metering pressure stage 0 in MPa."
+                      },
+                      "MSR0": {
+                        "type": "number",
+                        "description": "Screw rotation speed stage 0 in rpm."
+                      },
+                      "MBP0": {
+                        "type": "number",
+                        "description": "Back pressure stage 0 in MPa."
+                      },
+                      "IT": {
+                        "type": "number",
+                        "description": "Injection time in s."
+                      },
+                      "ID": {
+                        "type": "number",
+                        "description": "Injection delay in s."
+                      },
+                      "MD": {
+                        "type": "number",
+                        "description": "Metering delay in s."
+                      },
+                      "VPTT": {
+                        "type": "number",
+                        "description": "V/P switch time in s."
+                      },
+                      "polymer_abbreviation": {
+                        "type": "string",
+                        "description": "Material grade, e.g. PP. Provide when known so material rules can evaluate."
+                      },
+                      "product_ave_thickness": {
+                        "type": "number",
+                        "description": "Average wall thickness in mm. Provide when known."
+                      },
+                      "flow_length": {
+                        "type": "number",
+                        "description": "Longest melt flow length in mm. Provide when known."
+                      },
+                      "recommend_back_pressure": {
+                        "type": "number",
+                        "description": "Material recommended back pressure in MPa. Provide when known."
+                      },
+                      "recommend_melt_temperature": {
+                        "type": "number",
+                        "description": "Material recommended melt temperature in Celsius. Provide when known."
+                      },
+                      "injector_max_injection_pressure": {
+                        "type": "number",
+                        "description": "Machine max injection pressure in MPa. Provide when known."
+                      },
+                      "injector_max_holding_pressure": {
+                        "type": "number",
+                        "description": "Machine max holding pressure in MPa. Provide when known."
+                      },
+                      "injector_max_injection_velocity": {
+                        "type": "number",
+                        "description": "Machine max injection velocity in mm/s. Provide when known."
+                      },
+                      "injector_max_screw_rotation_speed": {
+                        "type": "number",
+                        "description": "Machine max screw speed in rpm. Provide when known."
+                      },
+                      "actual_injection_peak_pressure": {
+                        "type": "number",
+                        "description": "Measured peak injection pressure in MPa. Provide when known."
+                      },
+                      "actual_vp_position": {
+                        "type": "number",
+                        "description": "Measured actual V/P switch position in mm. Provide when known."
+                      },
+                      "min_buffer_position": {
+                        "type": "number",
+                        "description": "Measured cushion / remaining screw position in mm. Provide when known."
+                      },
+                      "actual_product_weight": {
+                        "type": "number",
+                        "description": "Measured part weight in g. Provide when known."
+                      },
+                      "actual_mould_temp": {
+                        "type": "number",
+                        "description": "Measured mould temperature in Celsius. Improves cooling and viscosity rules."
+                      },
+                      "actual_fast_injection_speed": {
+                        "type": "number",
+                        "description": "Measured fastest injection speed in mm/s. Used by speed ceiling guard."
+                      }
+                    }
+                  },
+                  "opt_strategy": {
+                    "type": "string",
+                    "enum": [
+                      "fuzzy",
+                      "tsk",
+                      "tsk_legacy",
+                      "auto",
+                      "auto_gray",
+                      "bayesian",
+                      "hybrid",
+                      "shadow_auto"
+                    ],
+                    "default": "fuzzy"
+                  },
+                  "mold": {
+                    "type": "object",
+                    "properties": {
+                      "product_ave_thickness": {
+                        "type": "number",
+                        "description": "Average wall thickness, mm."
+                      }
+                    }
+                  },
+                  "business_id": {
+                    "type": "string",
+                    "description": "The business ID you passed to first_shot. The server adds the per-subscriber prefix automatically - do NOT add a prefix. Passing this alone (with defect_info) loads the stored process from the archive, so you do not need to resend all current_params."
+                  },
+                  "process_no": {
+                    "type": "string",
+                    "description": "The process_no returned by first_shot (already prefixed, e.g. k7-MOLD-A-100). Alternative to business_id for loading the stored process."
+                  },
+                  "actual_mould_temp": {
+                    "type": "number",
+                    "description": "Measured mould temperature in Celsius."
+                  },
+                  "actual_fast_injection_speed": {
+                    "type": "number",
+                    "description": "Measured fastest injection speed in mm/s."
+                  },
+                  "actual_injection_peak_pressure": {
+                    "type": "number",
+                    "description": "Measured peak injection pressure in MPa."
+                  },
+                  "min_buffer_position": {
+                    "type": "number",
+                    "description": "Measured cushion / minimum buffer position in mm."
+                  },
+                  "actual_vp_position": {
+                    "type": "number",
+                    "description": "Measured actual V/P switch position in mm."
+                  },
+                  "actual_product_weight": {
+                    "type": "number",
+                    "description": "Measured part weight in g."
+                  }
+                }
+              },
+              "example": {
+                "business_id": "MOLD-A-100",
+                "defect_info": [
+                  {
+                    "desc": "SHORTSHOT",
+                    "level": "moderate"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Adjusted process, a short summary, and the remaining monthly quota.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Successful calculation result.",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "description": "0 means success."
+                    },
+                    "msg": {
+                      "type": "string",
+                      "description": "ok or an error message."
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "OK or a stable error code such as MISSING_FIELD."
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "Short human-readable summary of the recommended or adjusted process, with units."
+                    },
+                    "parameters": {
+                      "type": "array",
+                      "description": "Recommended or adjusted process parameters, each with a unit.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "description": "Machine-readable parameter key, e.g. IP0."
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Full English name of the parameter."
+                          },
+                          "value": {
+                            "type": "number",
+                            "description": "Parameter value."
+                          },
+                          "unit": {
+                            "type": "string",
+                            "description": "Unit of the value, e.g. MPa, mm/s, C, s."
+                          },
+                          "group": {
+                            "type": "string",
+                            "description": "Logical group, e.g. injection, holding, temperature."
+                          }
+                        }
+                      }
+                    },
+                    "quota_charged": {
+                      "type": "boolean",
+                      "description": "Whether this call consumed one quota unit."
+                    },
+                    "quota_remaining": {
+                      "type": "integer",
+                      "nullable": true,
+                      "description": "Remaining monthly quota, or null if unauthenticated."
+                    },
+                    "api_version": {
+                      "type": "string",
+                      "description": "API version, currently 1."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "MISSING_FIELD, INVALID_FIELD, or UNKNOWN_DEFECT. No quota is charged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Error result. No quota is charged for validation errors.",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "description": "Non-zero on error."
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "Stable error code, e.g. MISSING_FIELD, UNKNOWN_DEFECT, UNAUTHENTICATED, QUOTA_EXCEEDED."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable error message."
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Fields that failed validation."
+                    },
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Suggested fixes."
+                    },
+                    "quota_charged": {
+                      "type": "boolean",
+                      "description": "false for all validation errors."
+                    },
+                    "quota_remaining": {
+                      "type": "integer",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Adjust process for a defect. Costs 1 call. Preferred: pass business_id (from first-shot) or process_no (returned by first-shot) plus defect_info only - the server loads the stored process; current_params is optional. Fallback if not stored: pass current_params with the COMPLETE process from first-shot parameters; sending only a few keys gives wrong results. Optional measurements: actual_mould_temp, actual_injection_peak_pressure, actual_fast_injection_speed, min_buffer_position, actual_vp_position, actual_product_weight."
+      }
+    }
+  }
+}

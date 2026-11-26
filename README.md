@@ -12,33 +12,29 @@ Injection molding engineers need two things: a sensible starting set of machine 
 
 | Tool | What it does | Cost |
 |---|---|---|
-| `schema` | Free catalog of fields, units, defect codes, and error codes | Free |
-| `first_shot` | Recommend initial process parameters from material, part, and machine data | 1 API call |
-| `optimize` | Adjust current parameters for an observed defect | 1 API call |
+| `schema` | Free catalog of fields, units, examples, defect codes, and error codes | Free |
+| `first_shot` | Recommend initial process parameters from material, part, shot mass, and machine data | 1 API call |
+| `optimize` | Adjust stored or current parameters for an observed defect | 1 API call |
 
 The paid tools require a subscription API key. Get one at https://aicraft4injection.com ($19/month, 1000 calls). The `schema` tool works without a key so agents can discover the contract before paying.
 
-## Requirements
+## Connect via Remote HTTP or Local Stdio
 
-- Python 3.10+
-- An API key from https://aicraft4injection.com (for paid tools)
+### Option 1: Remote Streamable HTTP (no local installation)
 
-## Installation
+Clients supporting Streamable HTTP MCP can connect directly to:
+
+- **Endpoint**: `https://aicraft4injection.com/mcp`
+- **Header**: `Authorization: Bearer sk_your_key_here`
+- **Discovery card**: `https://aicraft4injection.com/.well-known/mcp.json`
+
+### Option 2: Local Stdio
+
+Requirements: Python 3.10+ and an API key from https://aicraft4injection.com (for paid tools).
 
 ```bash
 pip install -r requirements.txt
 ```
-
-## Configuration
-
-Set two environment variables:
-
-```bash
-export AICRAFT_API_KEY="sk_your_key_here"                       # required for paid tools
-export AICRAFT_BASE_URL="https://aicraft4injection.com"         # optional, this is the default
-```
-
-## Usage with MCP clients
 
 Add this server to your MCP client configuration (Claude Desktop, Cursor, Cline, etc.):
 
@@ -63,7 +59,7 @@ Restart the client. Three tools should appear: `schema`, `first_shot`, `optimize
 
 ### `schema`
 
-No arguments. Returns field groups, default units (mm, mm/s, MPa, rpm, °C, s), valid defect codes, and error codes.
+No arguments. Returns field groups, full request examples, default units (mm, mm/s, MPa, rpm, °C, s), valid defect codes, parameter meanings, and error codes.
 
 ### `first_shot`
 
@@ -71,35 +67,67 @@ Requires three fields (the engine cannot compute without them):
 
 | Field | Meaning |
 |---|---|
-| `polymer.polymer_abbreviation` | Material short name, e.g. `PC`, `ABS` |
+| `polymer.polymer_abbreviation` | Material short name, e.g. `PC`, `PP`, `ABS` |
 | `mold.product_ave_thickness` | Average wall thickness in mm (0 < value < 50) |
 | `machine.injector.injector_screw_diameter_mm` | Screw diameter in mm (> 0) |
 
-Recommended but optional: melt density, back pressure, drying temperature, gate thickness, clamp force, injection stroke, barrel temperature zones.
+Strongly recommended fields:
+
+- **`target_shot_weight_g`** (top-level total shot weight including runner, in g) — or `mold.single_cavity_part_weight_g` + `mold.cavity_num` + `mold.runner_weight`, or `mold.product_total_weight`. **Without shot mass, screw positions (`VPTL`, `MEL`, `IL*`) fall back to generic range midpoints instead of physically computed values.**
+- **`business_id`** (your own job/mould ID, without any prefix, e.g. `"MOLD-A-100"`) — stores the process under your API key scope and returns `process_no` and `process_index_id` so subsequent `optimize` calls do not need to resend all ~50 parameters.
+- Important field semantics: `machine_barrel_temperature_stage` is the **count of heating zones** (4 or 5), not a temperature in °C; `product_max_length` is the **longest melt flow length** in mm (typically 100–500), not wall thickness.
 
 Example argument:
 
 ```json
 {
-  "polymer": {"polymer_abbreviation": "PC", "melt_density": 1.05},
-  "mold": {"product_ave_thickness": 2.0, "gate_thickness": 1.2},
-  "machine": {"machine_clamp_force_ton": 180,
-              "injector": {"injector_screw_diameter_mm": 36}}
+  "business_id": "MOLD-A-100",
+  "target_shot_weight_g": 55,
+  "polymer": {
+    "polymer_abbreviation": "PC",
+    "melt_density": 1.05
+  },
+  "mold": {
+    "product_ave_thickness": 2.0,
+    "gate_thickness": 1.2,
+    "product_max_length": 180
+  },
+  "machine": {
+    "machine_clamp_force_ton": 180,
+    "injector": {
+      "injector_screw_diameter_mm": 36,
+      "injector_max_injection_stroke_mm": 160,
+      "machine_barrel_temperature_stage": 5
+    }
+  }
 }
 ```
 
 ### `optimize`
 
-Requires a defect and the current process parameters:
+Supports two input modes:
+
+#### Option A (Preferred): Stored process via `business_id` or `process_no`
+
+Pass the `business_id` used in `first_shot` (or the returned `process_no`) plus `defect_info`. The server automatically loads the full previous process from the archive, and optional machine measurements improve rule accuracy:
 
 ```json
 {
-  "defect_info": [{"desc": "FLASH", "level": "moderate"}],
-  "current_params": {"IP0": 90, "IV0": 40, "PP0": 50, "CT": 12}
+  "business_id": "MOLD-A-100",
+  "defect_info": [{"desc": "SHORTSHOT", "level": "moderate"}],
+  "actual_mould_temp": 85,
+  "actual_injection_peak_pressure": 112,
+  "min_buffer_position": 4.5
 }
 ```
 
-`desc` accepts stable codes such as `SHORTSHOT`, `FLASH`, `SHRINKAGE`, `BURN`, `WELDLINE`, `WARPING` (25 codes in total — call `schema` for the full list).
+Optional measurement fields: `actual_mould_temp`, `actual_injection_peak_pressure`, `actual_fast_injection_speed`, `min_buffer_position`, `actual_vp_position`, `actual_product_weight`.
+
+#### Option B (Stateless fallback): Full `current_params`
+
+If the previous shot was not stored with `business_id`, pass `current_params` containing **every** `key -> value` from `first_shot`'s `parameters` array (including `ML0`, `MEL`, `VPTL`, `IP0..2`, `IV0..2`, `IL0..2`, `PP0..1`, `PT0..1`, `PV0..1`, `BT1..4`, `MP0`, `MSR0`, `MBP0`, `CT`, `NT`). Do **not** send only a handful of keys (e.g. `NT`, `IP0`, `CT`) — omitting `ML0` causes screw-position collapse.
+
+`desc` accepts 25 stable defect codes such as `SHORTSHOT`, `FLASH`, `SHRINKAGE`, `BURN`, `WELDLINE`, `WARPING` (call `schema` for the full list).
 
 `level` accepts an English enum or a number from 0 to 1 (no Chinese values):
 
@@ -120,6 +148,8 @@ A successful call returns three layers, so you never have to guess what a code l
 1. **`summary`** — a one-paragraph, human-readable sentence. Read this aloud to the user.
 2. **`parameters`** — one entry per process value with `key`, `name` (full English name), `value`, `unit`, and `group`. Use `name` when explaining a value.
 3. **`data`** — the raw `key -> value` map, intended for writing settings back to a machine. Keys are abbreviations; humans should use `summary` or `parameters` instead.
+
+When `business_id` or `process_no` is supplied, the response also includes `process_no` and `process_index_id`.
 
 Example `parameters` entry:
 
@@ -145,16 +175,16 @@ Default units: mm, mm/s, MPa, rpm, °C, s. A request can override them with `pre
 
 ## Design notes
 
-- **Stdio transport**, protocol version `2024-11-05` for broad client compatibility.
+- **Stdio & Streamable HTTP**, protocol version `2024-11-05` for broad client compatibility.
+- **Full JSON Schema tool definitions**, bundled in `openapi_tools.json` so AI agents see all required fields, shot-mass options, archive IDs, and 25 defect enums.
 - **No local computation.** The server forwards JSON-RPC tool calls to the hosted API; the engine stays on the operator's own infrastructure.
 - **Stable error codes.** Every API response carries an `api_version` and a machine-readable `code` (e.g. `MISSING_FIELD`, `UNKNOWN_DEFECT`, `QUOTA_EXCEEDED`, `ENGINE_REJECTED`). Agents branch on `code`, not on prose.
 - **No charge on invalid input.** Requests rejected by validation do not consume quota. Engine failures are refunded automatically.
 
-A Streamable HTTP endpoint is also available for clients that prefer remote MCP: `https://aicraft4injection.com/mcp` (discovery document at `/.well-known/mcp.json`).
-
 ## Links
 
 - Service: https://aicraft4injection.com
+- Technical guide & FAQ: https://aicraft4injection.com/content
 - Free field/defect catalog: https://aicraft4injection.com/v1/schema
 - Short OpenAPI spec: https://aicraft4injection.com/openapi-tools.json
 - LLM discovery file: https://aicraft4injection.com/llms.txt
