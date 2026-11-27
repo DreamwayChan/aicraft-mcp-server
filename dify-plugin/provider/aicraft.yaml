@@ -1,0 +1,48 @@
+identity:
+  author: craft4injection
+  name: aicraft_injection_molding
+  label:
+    en_US: AICraft Injection Molding
+    zh_Hans: AICraft 注塑工艺优化
+    ja_JP: AICraft 射出成形プロセス最適化
+    pt_BR: AICraft Moldagem por Injeção
+  description:
+    en_US: First-shot process setup and defect-driven parameter tuning for injection molding (https://aicraft4injection.com).
+    zh_Hans: 注塑成型首模工艺参数推荐与缺陷驱动调优服务 (https://aicraft4injection.com)。
+    ja_JP: 射出成形の初期条件設定と不良対策パラメータ調整 API (https://aicraft4injection.com)。
+    pt_BR: Recomendação de parâmetros iniciais e ajuste de defeitos para moldagem por injeção (https://aicraft4injection.com).
+  icon: icon.svg
+  tags:
+    - business
+    - productivity
+    - utilities
+
+credentials_for_provider:
+  api_key:
+    type: secret-input
+    required: true
+    label:
+      en_US: AICraft API Key
+      zh_Hans: AICraft API 密钥
+      ja_JP: AICraft API キー
+      pt_BR: Chave de API AICraft
+    placeholder:
+      en_US: Paste your sk_... key from https://aicraft4injection.com
+      zh_Hans: 粘贴从 https://aicraft4injection.com 获取的 sk_... 密钥
+      ja_JP: https://aicraft4injection.com で取得した sk_... キーを入力
+      pt_BR: Cole sua chave sk_... obtida em https://aicraft4injection.com
+    help:
+      en_US: Obtain an API key at https://aicraft4injection.com (1,000 calls/month).
+      zh_Hans: 在 https://aicraft4injection.com 获取专属 API 密钥（每月 1,000 次调用）。
+      ja_JP: https://aicraft4injection.com で API キーを取得してください。
+      pt_BR: Obtenha sua chave de API em https://aicraft4injection.com.
+    url: https://aicraft4injection.com
+
+tools:
+  - tools/first_shot_setup.yaml
+  - tools/optimize_defect.yaml
+  - tools/get_schema_catalog.yaml
+
+extra:
+  python:
+    source: provider/aicraft.py

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="accentDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#67E8F9"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="26" fill="url(#bgDark)" stroke="#334155" stroke-width="2"/>
+  <rect x="20" y="44" width="60" height="28" rx="5" fill="none" stroke="url(#accentDark)" stroke-width="5"/>
+  <path d="M28 58 L72 58 M34 50 L40 66 M48 50 L54 66 M62 50 L68 66" stroke="#67E8F9" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="80,49 93,55 93,61 80,67" fill="#67E8F9"/>
+  <rect x="94" y="34" width="14" height="48" rx="3" fill="#FBBF24"/>
+  <circle cx="101" cy="58" r="4" fill="#FEF3C7"/>
+  <text x="64" y="104" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="20" fill="#F8FAFC" letter-spacing="1.5">AICRAFT</text>
+</svg>

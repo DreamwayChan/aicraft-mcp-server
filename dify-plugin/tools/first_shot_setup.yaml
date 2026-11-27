@@ -1,0 +1,453 @@
+identity:
+  name: first_shot_setup
+  author: craft4injection
+  label:
+    en_US: First-Shot Molding Setup
+    zh_Hans: 注塑首模工艺设定推荐
+    ja_JP: 初回成形（ファーストショット）条件推奨
+    pt_BR: Configuração Inicial de Moldagem (First-Shot)
+description:
+  human:
+    en_US: Compute physics-based initial machine settings (temperatures, multi-stage velocity/pressure/stroke, V/P switchover, packing, plasticizing, cooling time, and stability margins) before a trial run (costs 1 call).
+    zh_Hans: 开模试模前，根据材料、制品几何、总射重及注塑机参数物理推算完整的首模工艺设定单（消耗 1 次额度）。
+    ja_JP: 樹脂・製品形状・ショット重量・成形機仕様から物理計算に基づき初期成形条件を算出します（1コール消費）。
+    pt_BR: Calcula parâmetros iniciais de moldagem por injeção a partir de material, peça, peso de injeção e máquina (1 chamada).
+  llm: >-
+    Recommend initial injection molding machine settings before any trial run (costs 1 call).
+    Required: polymer_abbreviation, product_ave_thickness, injector_screw_diameter_mm.
+    CRITICAL: Always ask the user for total shot weight in grams (part(s) + runner) and pass target_shot_weight_g (or single_cavity_part_weight_g + cavity_num + runner_weight); without shot weight, screw positions VPTL/MEL/IL fall back to generic midpoints.
+    Also pass business_id (e.g. MOLD-2026-001, no prefix) so the setup is archived for later optimize_defect calls.
+    Note: machine_barrel_temperature_stage is zone COUNT (4 or 5), NOT Celsius; product_max_length is melt flow length in mm (50-600), NOT wall thickness.
+parameters:
+  - name: polymer_abbreviation
+    type: string
+    required: true
+    label:
+      en_US: "Polymer Family (e.g. PC, ABS, PP, PA66)"
+      zh_Hans: "材料简称 (如 PC, ABS, PP, PA66)"
+      ja_JP: "樹脂略号 (PC, ABS, PP, PA66 等)"
+      pt_BR: "Família do Polímero (ex: PC, ABS, PP)"
+    human_description:
+      en_US: Standard polymer abbreviation such as PC, ABS, PP, PA66, PA6, POM, PMMA, PBT, TPU.
+      zh_Hans: 塑料标准英文缩写，如 PC、ABS、PP、PA66、POM、PMMA、PBT。
+      ja_JP: PC, ABS, PP, PA66, POM, PMMA などの樹脂略称。
+      pt_BR: Abreviação padrão do polímero (PC, ABS, PP, PA66, POM, PMMA).
+    llm_description: Standard polymer family abbreviation, e.g. PC, ABS, PP, PA66, POM, PMMA, PBT.
+    form: llm
+
+  - name: product_ave_thickness
+    type: number
+    required: true
+    label:
+      en_US: Average Wall Thickness (mm)
+      zh_Hans: 制品平均壁厚 (mm)
+      ja_JP: 平均肉厚 (mm)
+      pt_BR: Espessura Média da Parede (mm)
+    human_description:
+      en_US: Nominal average part wall thickness in mm (0 < value < 50).
+      zh_Hans: 制品平均壁厚，单位 mm（大于 0 且小于 50）。
+      ja_JP: 製品の平均肉厚 (mm, 0〜50)。
+      pt_BR: Espessura média da parede em mm (0 < valor < 50).
+    llm_description: Average part wall thickness in mm (must be > 0 and < 50), e.g. 2.0.
+    form: llm
+
+  - name: injector_screw_diameter_mm
+    type: number
+    required: true
+    label:
+      en_US: Screw Diameter (mm)
+      zh_Hans: 螺杆直径 (mm)
+      ja_JP: スクリュー径 (mm)
+      pt_BR: Diâmetro da Rosca (mm)
+    human_description:
+      en_US: Injection machine screw diameter in mm (> 0), e.g. 36.
+      zh_Hans: 注塑机螺杆直径，单位 mm，例如 36。
+      ja_JP: 射出スクリュー直径 (mm)。
+      pt_BR: Diâmetro da rosca injetora em mm (> 0).
+    llm_description: Screw diameter in mm (> 0), e.g. 36.
+    form: llm
+
+  - name: target_shot_weight_g
+    type: number
+    required: false
+    label:
+      en_US: Total Shot Weight incl. Runner (g)
+      zh_Hans: 总射重·含流道 (g)
+      ja_JP: 総ショット重量・ランナー含む (g)
+      pt_BR: Peso Total de Injeção c/ Canal (g)
+    human_description:
+      en_US: Strongly recommended! Total shot mass per cycle including runner/sprue in grams. Enables physical VPTL/MEL/IL stroke calculation.
+      zh_Hans: 强烈建议填写！每模总射胶克重（含水口/流道），决定螺杆物理行程与 V/P 切换位置。
+      ja_JP: 強く推奨：ランナーを含む1ショット総重量(g)。物理的な計量・VP切替位置の算出に必要です。
+      pt_BR: Altamente recomendado! Peso total injetado em gramas incluindo canal, para cálculo físico de curso.
+    llm_description: "CRITICAL - Total shot weight (all cavities + runner) in grams, e.g. 62. Always ask the user for this if missing so VPTL/MEL/IL are physically computed instead of range midpoints."
+    form: llm
+
+  - name: business_id
+    type: string
+    required: false
+    label:
+      en_US: Job / Mold ID (Archive Link)
+      zh_Hans: 业务编号 / 模具号（归档联动）
+      ja_JP: ジョブ / 金型 ID（履歴連携）
+      pt_BR: ID do Molde / Ordem (Vínculo)
+    human_description:
+      en_US: "Your job or mold ID (e.g. MOLD-2026-001, no prefix). Stores the setup so optimize_defect can load it automatically."
+      zh_Hans: "自定义业务或模具编号（无需加前缀，如 MOLD-2026-001），自动归档以便后续缺陷调优免传全量参数。"
+      ja_JP: "任意のジョブ/金型ID（例: MOLD-2026-001）。保存され、後の不良対策で再利用できます。"
+      pt_BR: "Seu ID de molde/trabalho (ex: MOLD-2026-001). Armazena o processo para ajustes posteriores."
+    llm_description: "User's job or mold identifier without any prefix (e.g. MOLD-2026-001). Pass this to archive the first-shot setup and receive process_no."
+    form: llm
+
+  - name: polymer_trademark
+    type: string
+    required: false
+    label:
+      en_US: Resin Grade / Trade Name
+      zh_Hans: 材料牌号 / 商品名
+      ja_JP: 樹脂グレード名
+      pt_BR: Grau / Marca da Resina
+    human_description:
+      en_US: "Specific resin grade, e.g. Lexan 141R, PA66-GF30."
+      zh_Hans: "具体材料牌号，如 Lexan 141R。"
+      ja_JP: "具体的なグレード名（例: Lexan 141R）。"
+      pt_BR: "Grau específico da resina (ex: Lexan 141R)."
+    llm_description: Specific resin grade or trade name if mentioned, e.g. Lexan 141R.
+    form: llm
+
+  - name: melt_density
+    type: number
+    required: false
+    label:
+      en_US: Melt Density (g/cm3)
+      zh_Hans: 熔体密度 (g/cm3)
+      ja_JP: 溶融密度 (g/cm3)
+      pt_BR: Densidade de Fusão (g/cm3)
+    human_description:
+      en_US: Polymer melt density in g/cm3 (e.g. 1.05 for PC, 0.75 for PP).
+      zh_Hans: 熔体密度 (g/cm3)，如 PC 约 1.05，PP 约 0.75。
+      ja_JP: 溶融密度 (g/cm3)。
+      pt_BR: Densidade do polímero fundido em g/cm3.
+    llm_description: Melt density in g/cm3 when known, e.g. 1.05 for PC.
+    form: llm
+
+  - name: recommend_melt_temperature
+    type: number
+    required: false
+    label:
+      en_US: Recommended Melt Temp (C)
+      zh_Hans: 推荐熔体温度 (℃)
+      ja_JP: 推奨樹脂温度 (℃)
+      pt_BR: Temp. Recomendada de Fusão (C)
+    human_description:
+      en_US: Resin datasheet recommended melt temperature in Celsius.
+      zh_Hans: 物性表推荐熔温 (℃)。
+      ja_JP: 材料データシートの推奨樹脂温度 (℃)。
+      pt_BR: Temperatura de fusão recomendada em Celsius.
+    llm_description: Recommended melt temperature in Celsius if known, e.g. 295.
+    form: llm
+
+  - name: recommend_mold_temperature
+    type: number
+    required: false
+    label:
+      en_US: Recommended Mold Temp (C)
+      zh_Hans: 推荐模具温度 (℃)
+      ja_JP: 推奨金型温度 (℃)
+      pt_BR: Temp. Recomendada do Molde (C)
+    human_description:
+      en_US: Resin datasheet recommended mold temperature in Celsius.
+      zh_Hans: 物性表推荐模温 (℃)。
+      ja_JP: 推奨金型温度 (℃)。
+      pt_BR: Temperatura recomendada do molde em Celsius.
+    llm_description: Recommended mold temperature in Celsius if known, e.g. 85.
+    form: llm
+
+  - name: recommend_back_pressure
+    type: number
+    required: false
+    label:
+      en_US: Recommended Back Pressure (MPa)
+      zh_Hans: 推荐背压 (MPa)
+      ja_JP: 推奨背圧 (MPa)
+      pt_BR: Contrapressão Recomendada (MPa)
+    human_description:
+      en_US: Recommended plasticizing back pressure in MPa.
+      zh_Hans: 推荐储料背压 (MPa)。
+      ja_JP: 推奨背圧 (MPa)。
+      pt_BR: Contrapressão recomendada em MPa.
+    llm_description: Recommended back pressure in MPa if known, e.g. 5.
+    form: llm
+
+  - name: product_max_thickness
+    type: number
+    required: false
+    label:
+      en_US: Max Wall Thickness (mm)
+      zh_Hans: 最大壁厚 (mm)
+      ja_JP: 最大肉厚 (mm)
+      pt_BR: Espessura Máxima (mm)
+    human_description:
+      en_US: Maximum local wall thickness (bosses/ribs) in mm.
+      zh_Hans: 制品局部最大壁厚 (mm)。
+      ja_JP: 最大肉厚 (mm)。
+      pt_BR: Espessura máxima da peça em mm.
+    llm_description: Maximum wall thickness in mm if known, e.g. 3.0.
+    form: llm
+
+  - name: product_max_length
+    type: number
+    required: false
+    label:
+      en_US: Max Melt Flow Length (mm)
+      zh_Hans: 最大流程长度 (mm)
+      ja_JP: 最大流動長 (mm)
+      pt_BR: Comprimento Máximo de Fluxo (mm)
+    human_description:
+      en_US: Longest melt flow path from gate to end-of-fill in mm (typically 50-600 mm, NOT wall thickness).
+      zh_Hans: 熔体从浇口到末端的最大流动路径长度 (mm，通常 50-600，切勿填成壁厚)。
+      ja_JP: ゲートから流動末端までの最大流動長 (mm、通常50〜600)。
+      pt_BR: Maior caminho de fluxo em mm (normalmente 50-600 mm).
+    llm_description: Longest melt flow path length in mm (typically 50-600 mm, NOT wall thickness), e.g. 180.
+    form: llm
+
+  - name: single_cavity_part_weight_g
+    type: number
+    required: false
+    label:
+      en_US: Single-Cavity Part Weight (g)
+      zh_Hans: 单穴制品克重 (g)
+      ja_JP: 1キャビティ製品重量 (g)
+      pt_BR: Peso de 1 Cavidade (g)
+    human_description:
+      en_US: Weight of one molded part in grams (use with cavity_num and runner_weight when target_shot_weight_g is omitted).
+      zh_Hans: 单个制品净重 (g)，可配合穴数与流道重自动折算总射重。
+      ja_JP: 製品1個あたりの重量 (g)。
+      pt_BR: Peso de uma peça em gramas (use com cavity_num e runner_weight).
+    llm_description: Single-cavity part weight in grams (alternative to target_shot_weight_g when paired with cavity_num and runner_weight).
+    form: llm
+
+  - name: cavity_num
+    type: number
+    required: false
+    label:
+      en_US: Number of Cavities
+      zh_Hans: 模穴数
+      ja_JP: キャビティ数
+      pt_BR: Número de Cavidades
+    human_description:
+      en_US: Number of cavities in the mold, e.g. 1, 2, 4, 8.
+      zh_Hans: 模具穴数，如 1、2、4。
+      ja_JP: 金型のキャビティ数。
+      pt_BR: Número de cavidades do molde.
+    llm_description: Number of mold cavities (integer >= 1), e.g. 2.
+    form: llm
+
+  - name: runner_weight
+    type: number
+    required: false
+    label:
+      en_US: Cold Runner / Sprue Weight (g)
+      zh_Hans: 冷流道/水口克重 (g)
+      ja_JP: ランナー・スプルー重量 (g)
+      pt_BR: Peso do Canal Frio (g)
+    human_description:
+      en_US: Sprue and cold runner weight in grams (0 for hot runner). Also sizes first-stage runner fill stroke.
+      zh_Hans: 冷流道/水口克重 (g)，热流道填 0。
+      ja_JP: コールドランナー重量 (g)。
+      pt_BR: Peso do canal de alimentação em gramas.
+    llm_description: Cold runner/sprue weight in grams (0 for hot runner).
+    form: llm
+
+  - name: runner_type
+    type: string
+    required: false
+    label:
+      en_US: Runner Type (cold / hot)
+      zh_Hans: 流道类型 (cold / hot)
+      ja_JP: ランナー種別 (cold / hot)
+      pt_BR: Tipo de Canal (cold / hot)
+    human_description:
+      en_US: "'cold' or 'hot'."
+      zh_Hans: "'cold'（冷流道）或 'hot'（热流道）。"
+      ja_JP: "'cold' または 'hot'。"
+      pt_BR: "'cold' ou 'hot'."
+    llm_description: "Runner system type: 'cold' or 'hot'."
+    form: llm
+
+  - name: gate_thickness
+    type: number
+    required: false
+    label:
+      en_US: Gate Thickness / Diameter (mm)
+      zh_Hans: 浇口厚度/直径 (mm)
+      ja_JP: ゲート厚 / 径 (mm)
+      pt_BR: Espessura / Diâmetro do Ponto de Injeção (mm)
+    human_description:
+      en_US: Gate thickness or pin-gate diameter in mm, e.g. 1.2.
+      zh_Hans: 浇口厚度或点浇口直径 (mm)，影响浇口封冻与保压时间。
+      ja_JP: ゲート厚みまたは径 (mm)。
+      pt_BR: Espessura ou diâmetro do gate em mm.
+    llm_description: Gate thickness or diameter in mm, e.g. 1.2.
+    form: llm
+
+  - name: projected_area_cm2
+    type: number
+    required: false
+    label:
+      en_US: Total Projected Area (cm2)
+      zh_Hans: 总投影面积 (cm2)
+      ja_JP: 総投影面積 (cm2)
+      pt_BR: Área Projetada Total (cm2)
+    human_description:
+      en_US: Total projected area of all cavities + runner in cm2.
+      zh_Hans: 制品与流道总投影面积 (cm2)。
+      ja_JP: 全キャビティ＋ランナーの総投影面積 (cm2)。
+      pt_BR: Área projetada total em cm2.
+    llm_description: Total projected area in cm2 if known.
+    form: llm
+
+  - name: machine_clamp_force_ton
+    type: number
+    required: false
+    label:
+      en_US: Machine Clamp Force (ton)
+      zh_Hans: 机台锁模力 (吨)
+      ja_JP: 型締力 (ton)
+      pt_BR: Força de Fechamento (ton)
+    human_description:
+      en_US: Press clamping force in metric tons, e.g. 180.
+      zh_Hans: 注塑机锁模力（吨），如 180。
+      ja_JP: 成形機の型締力 (ton)。
+      pt_BR: Força de fechamento da injetora em toneladas.
+    llm_description: Machine clamping force in tons, e.g. 180.
+    form: llm
+
+  - name: power_method
+    type: string
+    required: false
+    label:
+      en_US: Machine Drive (electric / hydraulic)
+      zh_Hans: 驱动方式 (electric / hydraulic)
+      ja_JP: 駆動方式 (electric / hydraulic)
+      pt_BR: Acionamento (electric / hydraulic)
+    human_description:
+      en_US: "'electric' or 'hydraulic'."
+      zh_Hans: "'electric'（全电动）或 'hydraulic'（液压）。"
+      ja_JP: "'electric' または 'hydraulic'。"
+      pt_BR: "'electric' ou 'hydraulic'."
+    llm_description: "Press drive type if known: 'electric' or 'hydraulic'."
+    form: llm
+
+  - name: injector_max_injection_stroke_mm
+    type: number
+    required: false
+    label:
+      en_US: Max Injection Stroke (mm)
+      zh_Hans: 最大射胶行程 (mm)
+      ja_JP: 最大射出ストローク (mm)
+      pt_BR: Curso Máximo de Injeção (mm)
+    human_description:
+      en_US: Maximum screw injection stroke in mm, e.g. 160.
+      zh_Hans: 机台最大射胶行程 (mm)，如 160。
+      ja_JP: 最大射出ストローク (mm)。
+      pt_BR: Curso máximo de injeção em mm.
+    llm_description: Machine maximum injection stroke in mm, e.g. 160.
+    form: llm
+
+  - name: injector_max_injection_velocity
+    type: number
+    required: false
+    label:
+      en_US: Max Injection Velocity (mm/s)
+      zh_Hans: 最大射胶速度 (mm/s)
+      ja_JP: 最大射出速度 (mm/s)
+      pt_BR: Velocidade Máxima de Injeção (mm/s)
+    human_description:
+      en_US: Machine maximum injection speed in mm/s, e.g. 200.
+      zh_Hans: 机台最大射速上限 (mm/s)。
+      ja_JP: 最大射出速度 (mm/s)。
+      pt_BR: Velocidade máxima de injeção em mm/s.
+    llm_description: Machine maximum injection velocity in mm/s if known.
+    form: llm
+
+  - name: injector_max_injection_pressure
+    type: number
+    required: false
+    label:
+      en_US: Max Specific Inj. Pressure (MPa)
+      zh_Hans: 最大注射比压 (MPa)
+      ja_JP: 最大射出圧力 (MPa)
+      pt_BR: Pressão Máxima de Injeção (MPa)
+    human_description:
+      en_US: Machine maximum specific injection pressure in MPa, e.g. 180.
+      zh_Hans: 机台最大注射压力上限 (MPa)。
+      ja_JP: 最大射出圧力 (MPa)。
+      pt_BR: Pressão específica máxima de injeção em MPa.
+    llm_description: Machine maximum specific injection pressure in MPa if known.
+    form: llm
+
+  - name: machine_barrel_temperature_stage
+    type: number
+    required: false
+    label:
+      en_US: Barrel Heating Zones Count (4 or 5)
+      zh_Hans: 料筒加热温区数量 (4 或 5)
+      ja_JP: シリンダー温度ゾーン数 (4 または 5)
+      pt_BR: Número de Zonas do Cilindro (4 ou 5)
+    human_description:
+      en_US: Number of barrel heating zones (integer 4 or 5, NOT a temperature in Celsius).
+      zh_Hans: 料筒加热段数（整数 4 或 5，切勿填成摄氏温度）。
+      ja_JP: シリンダー加熱ゾーン数（4または5、温度ではありません）。
+      pt_BR: Quantidade de zonas de aquecimento (4 ou 5, NÃO é temperatura).
+    llm_description: Integer COUNT of barrel heating zones (4 or 5), NOT a temperature in Celsius.
+    form: llm
+
+  - name: pressure_unit
+    type: select
+    required: false
+    default: MPa
+    options:
+      - value: MPa
+        label:
+          en_US: MPa (Specific Pressure)
+          zh_Hans: MPa（比压）
+          ja_JP: MPa
+          pt_BR: MPa
+      - value: bar
+        label:
+          en_US: bar
+          zh_Hans: bar
+          ja_JP: bar
+          pt_BR: bar
+    label:
+      en_US: Output Pressure Unit
+      zh_Hans: 输出压力单位
+      ja_JP: 圧力単位
+      pt_BR: Unidade de Pressão
+    human_description:
+      en_US: Unit for returned pressure parameters (MPa or bar).
+      zh_Hans: 返回压力参数所使用的单位（MPa 或 bar）。
+      ja_JP: 出力される圧力パラメータの単位。
+      pt_BR: Unidade de pressão na resposta (MPa ou bar).
+    form: form
+
+  - name: extra_json
+    type: string
+    required: false
+    label:
+      en_US: Extra Context JSON (Optional)
+      zh_Hans: 高阶扩展参数 JSON（可选）
+      ja_JP: 追加コンテキスト JSON（任意）
+      pt_BR: JSON Adicional (Opcional)
+    human_description:
+      en_US: Optional JSON object for extra fields (e.g. actual_mould_temp, dose_efficiency, thermal_diffusivity).
+      zh_Hans: 可选 JSON 对象，用于透传实测模温 actual_mould_temp、射胶效率 dose_efficiency 等高阶字段。
+      ja_JP: actual_mould_temp や dose_efficiency 等の追加フィールド用 JSON。
+      pt_BR: Objeto JSON opcional para parâmetros avançados.
+    llm_description: 'Optional JSON object string for advanced fields like {"actual_mould_temp": 80, "dose_efficiency": 0.85}. Leave empty unless needed.'
+    form: llm
+
+extra:
+  python:
+    source: tools/first_shot_setup.py

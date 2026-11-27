@@ -1,0 +1,308 @@
+identity:
+  name: optimize_defect
+  author: craft4injection
+  label:
+    en_US: Molding Defect Tuning
+    zh_Hans: 注塑试模缺陷调优
+    ja_JP: 射出成形・不良対策チューニング
+    pt_BR: Ajuste de Defeitos de Moldagem
+description:
+  human:
+    en_US: Adjust injection molding parameters for 25 observed defects using fuzzy expert rules, safety guards, and 6 on-machine measurements (costs 1 call).
+    zh_Hans: 针对短射、飞边、缩水、翘曲等 25 种缺陷，结合机台 6 项实测值自动调整工艺参数并输出对比增量表（消耗 1 次额度）。
+    ja_JP: 25種類の成形不良に対し、実測値とファジィ専門家ルールを用いてパラメータ調整案と差分表を出力します（1コール消費）。
+    pt_BR: Ajusta parâmetros de moldagem para 25 defeitos usando regras especialistas e leituras reais da máquina (1 chamada).
+  llm: >-
+    Adjust injection molding process parameters when a defect is observed after a trial shot (costs 1 call).
+    PREFERRED (Option A): pass business_id (from first_shot_setup) or process_no plus defect_code and defect_severity — the server loads the stored baseline process automatically so current_params_json can be omitted!
+    FALLBACK (Option B): if no archive ID exists, pass current_params_json with ALL ~50 parameters from first_shot_setup (including ML0, MEL, VPTL, IP*, IV*, IL*).
+    Supply any known trial measurements (actual_mould_temp, actual_injection_peak_pressure, actual_fast_injection_speed, min_buffer_position, actual_vp_position, actual_product_weight) to activate safety guards.
+parameters:
+  - name: defect_code
+    type: string
+    required: true
+    label:
+      en_US: Primary Defect Code
+      zh_Hans: 主缺陷代码
+      ja_JP: 主な不良コード
+      pt_BR: Código do Defeito Principal
+    human_description:
+      en_US: One of SHORTSHOT, FLASH, SHRINKAGE, BURN, WELDLINE, WARPING, JETTING, AIRTRAP, GASVEINS, MATERIALFLOWER, OVERSIZE, UNDERSIZE, TOPWHITE, HARDDEMOLDING, GATEMARK, SHADING, ABERRATION, DELAYEDFLOW, HEAVYWEIGHT, LIGHTWEIGHT, GATEHEIGHT, SOFTWATEROUTLET, FIBERFLOATATION, WIREDRAWING, SCREWZERO.
+      zh_Hans: 标准缺陷代码，如 SHORTSHOT(短射)、FLASH(飞边)、SHRINKAGE(缩水)、BURN(烧焦)、WELDLINE(熔接痕)、WARPING(翘曲) 等 25 种。
+      ja_JP: SHORTSHOT, FLASH, SHRINKAGE, BURN, WELDLINE, WARPING 等25種類の不良コード。
+      pt_BR: Código padrão do defeito (SHORTSHOT, FLASH, SHRINKAGE, BURN, WELDLINE, WARPING, etc.).
+    llm_description: "Observed molding defect code. Valid codes: SHORTSHOT, FLASH, SHRINKAGE, BURN, WELDLINE, WARPING, JETTING, AIRTRAP, GASVEINS, MATERIALFLOWER, OVERSIZE, UNDERSIZE, TOPWHITE, HARDDEMOLDING, GATEMARK, SHADING, ABERRATION, DELAYEDFLOW, HEAVYWEIGHT, LIGHTWEIGHT, GATEHEIGHT, SOFTWATEROUTLET, FIBERFLOATATION, WIREDRAWING, SCREWZERO."
+    form: llm
+
+  - name: defect_severity
+    type: string
+    required: true
+    label:
+      en_US: Defect Severity (mild / moderate / severe / critical)
+      zh_Hans: 缺陷严重程度 (mild / moderate / severe / critical)
+      ja_JP: 不良の程度 (mild / moderate / severe / critical)
+      pt_BR: Severidade do Defeito (mild / moderate / severe / critical)
+    human_description:
+      en_US: English severity level — mild, moderate, severe, or critical.
+      zh_Hans: 英文等级枚举：mild（轻微）、moderate（中等）、severe（严重）、critical（非常严重）。
+      ja_JP: mild, moderate, severe, critical のいずれか。
+      pt_BR: Nível em inglês — mild, moderate, severe ou critical.
+    llm_description: "Defect severity enum (English only): 'mild', 'moderate', 'severe', or 'critical'."
+    form: llm
+
+  - name: business_id
+    type: string
+    required: false
+    label:
+      en_US: Job / Mold ID (from First-Shot)
+      zh_Hans: 业务编号 / 模具号（来自首模）
+      ja_JP: ジョブ / 金型 ID（初回設定と同じID）
+      pt_BR: ID do Molde / Ordem (do First-Shot)
+    human_description:
+      en_US: Preferred! Pass the same business_id used in first_shot_setup to load the stored setup automatically.
+      zh_Hans: 推荐！填入首模时使用的同一个 business_id，服务端自动加载上一模全套参数。
+      ja_JP: 推奨：初回設定で指定した business_id を渡すと保存済み条件を自動読込します。
+      pt_BR: Recomendado! Informe o mesmo business_id usado no first_shot_setup.
+    llm_description: Preferred Option A — the same business_id passed to first_shot_setup (without prefix). Loads the stored process automatically.
+    form: llm
+
+  - name: process_no
+    type: string
+    required: false
+    label:
+      en_US: Scoped Process No (Alternative ID)
+      zh_Hans: 归档工艺号 process_no（备选）
+      ja_JP: 保存済みプロセス番号 process_no
+      pt_BR: Número do Processo (process_no)
+    human_description:
+      en_US: Alternative to business_id — the prefixed process_no returned by first_shot_setup (e.g. k6-MOLD-2026-001).
+      zh_Hans: 首模返回结果的 process_no（如 k6-MOLD-2026-001），与 business_id 二选一即可。
+      ja_JP: first_shot_setup が返した process_no。
+      pt_BR: O process_no retornado pelo first_shot_setup.
+    llm_description: Prefixed process_no returned by first_shot_setup (alternative to business_id).
+    form: llm
+
+  - name: secondary_defect_code
+    type: string
+    required: false
+    label:
+      en_US: Secondary Defect Code (Optional)
+      zh_Hans: 次要并发缺陷代码（可选）
+      ja_JP: 副次的な不良コード（任意）
+      pt_BR: Segundo Defeito (Opcional)
+    human_description:
+      en_US: Optional second defect observed on the same shot.
+      zh_Hans: 同一模次同时出现的第二个缺陷代码（可选）。
+      ja_JP: 同時に発生している2つ目の不良コード（任意）。
+      pt_BR: Código de um segundo defeito observado na mesma injeção.
+    llm_description: Optional second defect code if two defects co-occur on the same shot.
+    form: llm
+
+  - name: secondary_defect_severity
+    type: string
+    required: false
+    label:
+      en_US: Secondary Defect Severity
+      zh_Hans: 次要缺陷严重程度
+      ja_JP: 副次不良の程度
+      pt_BR: Severidade do Segundo Defeito
+    human_description:
+      en_US: "'mild', 'moderate', 'severe', or 'critical'."
+      zh_Hans: "'mild'、'moderate'、'severe' 或 'critical'。"
+      ja_JP: "'mild', 'moderate', 'severe', 'critical' のいずれか。"
+      pt_BR: "'mild', 'moderate', 'severe' ou 'critical'."
+    llm_description: "Severity for secondary_defect_code: 'mild', 'moderate', 'severe', or 'critical'."
+    form: llm
+
+  - name: previous_step_feedback
+    type: string
+    required: false
+    label:
+      en_US: Previous Tuning Effect (good / bad)
+      zh_Hans: 上一轮调机效果反馈 (good / bad)
+      ja_JP: 前回調整の効果 (good / bad)
+      pt_BR: Efeito do Ajuste Anterior (good / bad)
+    human_description:
+      en_US: "Optional — 'good' if last adjustment improved the defect, 'bad' if it worsened or stalled."
+      zh_Hans: "可选：上一轮调参有改善填 'good'，效果不佳填 'bad'。"
+      ja_JP: "前回調整で改善した場合は 'good'、悪化・変化なしは 'bad'。"
+      pt_BR: "'good' se melhorou na rodada anterior, 'bad' se piorou."
+    llm_description: "Optional feedback on previous tuning round: 'good' or 'bad'."
+    form: llm
+
+  - name: actual_mould_temp
+    type: number
+    required: false
+    label:
+      en_US: Measured Mold Temp (C)
+      zh_Hans: 实测模温 (℃)
+      ja_JP: 実測金型温度 (℃)
+      pt_BR: Temp. Medida do Molde (C)
+    human_description:
+      en_US: Actual measured mold surface temperature in Celsius.
+      zh_Hans: 试模现场实测模温 (℃)。
+      ja_JP: 実測された金型表面温度 (℃)。
+      pt_BR: Temperatura medida do molde em Celsius.
+    llm_description: Measured mold temperature in Celsius if available.
+    form: llm
+
+  - name: actual_injection_peak_pressure
+    type: number
+    required: false
+    label:
+      en_US: Measured Peak Inj. Pressure (MPa)
+      zh_Hans: 实测注射峰值压力 (MPa)
+      ja_JP: 実測ピーク射出圧力 (MPa)
+      pt_BR: Pressão de Pico Medida (MPa)
+    human_description:
+      en_US: Actual peak injection pressure read from the press monitor in MPa.
+      zh_Hans: 注塑机屏幕读取的实际注射峰压 (MPa)。
+      ja_JP: 成形機モニターの実測ピーク射出圧力 (MPa)。
+      pt_BR: Pressão máxima de injeção lida na máquina em MPa.
+    llm_description: Measured peak injection pressure in MPa from the press screen.
+    form: llm
+
+  - name: actual_fast_injection_speed
+    type: number
+    required: false
+    label:
+      en_US: Measured Peak Inj. Speed (mm/s)
+      zh_Hans: 实测最快射速 (mm/s)
+      ja_JP: 実測最大射出速度 (mm/s)
+      pt_BR: Velocidade de Pico Medida (mm/s)
+    human_description:
+      en_US: Actual fastest screw speed achieved during filling in mm/s.
+      zh_Hans: 实际最快射胶速度 (mm/s)。
+      ja_JP: 実測された最大射出速度 (mm/s)。
+      pt_BR: Velocidade máxima real de injeção em mm/s.
+    llm_description: Measured fastest injection velocity in mm/s if available.
+    form: llm
+
+  - name: min_buffer_position
+    type: number
+    required: false
+    label:
+      en_US: Measured Cushion / Buffer Pos. (mm)
+      zh_Hans: 实测最小缓冲料垫位置 (mm)
+      ja_JP: 実測最小クッション量 (mm)
+      pt_BR: Colchão Mínimo Medido (mm)
+    human_description:
+      en_US: Remaining screw cushion position in mm after holding.
+      zh_Hans: 保压结束后的最小缓冲位置/残余料垫 (mm)。
+      ja_JP: 保圧完了後の最小クッション位置 (mm)。
+      pt_BR: Posição mínima de colchão (cushion) em mm.
+    llm_description: Measured minimum cushion / remaining screw buffer position in mm.
+    form: llm
+
+  - name: actual_vp_position
+    type: number
+    required: false
+    label:
+      en_US: Measured V/P Switch Position (mm)
+      zh_Hans: 实测 V/P 切换位置 (mm)
+      ja_JP: 実測 V/P 切替位置 (mm)
+      pt_BR: Posição Real de Comutação V/P (mm)
+    human_description:
+      en_US: Actual screw position at V/P transfer in mm.
+      zh_Hans: 实际 V/P 转保压螺杆位置 (mm)。
+      ja_JP: 実測 V/P 切替位置 (mm)。
+      pt_BR: Posição real de transferência V/P em mm.
+    llm_description: Measured V/P switchover position in mm if available.
+    form: llm
+
+  - name: actual_product_weight
+    type: number
+    required: false
+    label:
+      en_US: Measured Shot / Part Weight (g)
+      zh_Hans: 实测产品重量 (g)
+      ja_JP: 実測製品重量 (g)
+      pt_BR: Peso Medido da Peça (g)
+    human_description:
+      en_US: Weighed trial part or shot mass in grams.
+      zh_Hans: 试模称重的实际制品克重 (g)。
+      ja_JP: 試打ち品の実測重量 (g)。
+      pt_BR: Peso real medido da peça em gramas.
+    llm_description: Measured part/shot weight in grams if weighed.
+    form: llm
+
+  - name: polymer_abbreviation
+    type: string
+    required: false
+    label:
+      en_US: Polymer Family (Optional Context)
+      zh_Hans: 材料简称（可选上下文）
+      ja_JP: 樹脂略号（任意）
+      pt_BR: Polímero (Contexto Opcional)
+    human_description:
+      en_US: "Optional material code (e.g. PC, ABS, PP) for melt ceiling guards."
+      zh_Hans: "可选材料缩写（如 PC、PP），用于激活熔温上限安全门控。"
+      ja_JP: "樹脂上限温度ガード用の樹脂略号（任意）。"
+      pt_BR: "Código do polímero opcional (ex: PC, PP)."
+    llm_description: Material abbreviation (e.g. PC, ABS, PP) when known.
+    form: llm
+
+  - name: product_ave_thickness
+    type: number
+    required: false
+    label:
+      en_US: Average Wall Thickness (mm)
+      zh_Hans: 平均壁厚 (mm)
+      ja_JP: 平均肉厚 (mm)
+      pt_BR: Espessura Média (mm)
+    human_description:
+      en_US: Optional average wall thickness in mm.
+      zh_Hans: 可选平均壁厚 (mm)。
+      ja_JP: 平均肉厚 (mm・任意)。
+      pt_BR: Espessura média da parede em mm (opcional).
+    llm_description: Average wall thickness in mm when known.
+    form: llm
+
+  - name: pressure_unit
+    type: select
+    required: false
+    default: MPa
+    options:
+      - value: MPa
+        label:
+          en_US: MPa
+          zh_Hans: MPa
+          ja_JP: MPa
+          pt_BR: MPa
+      - value: bar
+        label:
+          en_US: bar
+          zh_Hans: bar
+          ja_JP: bar
+          pt_BR: bar
+    label:
+      en_US: Output Pressure Unit
+      zh_Hans: 输出压力单位
+      ja_JP: 圧力単位
+      pt_BR: Unidade de Pressão
+    human_description:
+      en_US: Unit for returned pressure parameters (MPa or bar).
+      zh_Hans: 返回压力单位（MPa 或 bar）。
+      ja_JP: 出力圧力単位。
+      pt_BR: Unidade de pressão (MPa ou bar).
+    form: form
+
+  - name: current_params_json
+    type: string
+    required: false
+    label:
+      en_US: Full Current Params JSON (Stateless Fallback)
+      zh_Hans: 完整当前工艺 JSON（无档案兜底）
+      ja_JP: 現在の全成形条件 JSON（ID未使用時のみ）
+      pt_BR: JSON Completo dos Parâmetros Atuais (Fallback)
+    human_description:
+      en_US: Leave empty when business_id or process_no is supplied! Otherwise pass the complete flat data JSON (~50 keys including ML0, MEL, VPTL) from first_shot_setup.
+      zh_Hans: 已填 business_id 或 process_no 时留空！仅在未归档时粘贴首模返回的完整 data JSON（必须含 ML0、MEL、VPTL 等全量键）。
+      ja_JP: business_id または process_no 指定時は空欄にしてください。未保存時のみ全パラメータ JSON を渡します。
+      pt_BR: Deixe vazio se usar business_id/process_no; caso contrário envie todos os ~50 parâmetros do first_shot_setup.
+    llm_description: Leave empty if business_id or process_no is provided. Only for stateless fallback, pass a JSON object string containing EVERY parameter from first_shot_setup (including ML0, MEL, VPTL, IP0..2, IV0..2, IL0..2, PP0..1, PT0..1, BT1..4, CT, NT). Never pass just 3-4 keys.
+    form: llm
+
+extra:
+  python:
+    source: tools/optimize_defect.py

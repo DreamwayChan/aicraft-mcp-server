@@ -1,0 +1,19 @@
+identity:
+  name: get_schema_catalog
+  author: craft4injection
+  label:
+    en_US: Field & Defect Catalog (Free)
+    zh_Hans: 字段与缺陷目录查询（免费）
+    ja_JP: パラメータ・不良コード一覧（無料）
+    pt_BR: Catálogo de Campos e Defeitos (Grátis)
+description:
+  human:
+    en_US: Retrieve the free catalog of injection molding input fields, returned parameter meanings, default units, 25 defect codes, and examples (0 quota cost).
+    zh_Hans: 免费查询注塑入参字段、返回工艺键含义、默认单位、25种标准缺陷代码及请求示例（不消耗额度）。
+    ja_JP: 射出成形の入力フィールド、出力パラメータの意味、単位、25種類の不良コード、リクエスト例を無料で取得します。
+    pt_BR: Consulta gratuita de campos de entrada, significados dos parâmetros, unidades, 25 códigos de defeitos e exemplos.
+  llm: Retrieve the free catalog of input fields, parameter codes (such as NT, IP0, VPTL, MEL), units, 25 defect codes, and request examples. Costs 0 quota. Call this if unsure about defect codes or parameter meanings.
+parameters: []
+extra:
+  python:
+    source: tools/get_schema_catalog.py

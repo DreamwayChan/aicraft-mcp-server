@@ -1,0 +1,44 @@
+version: 0.1.0
+type: plugin
+author: craft4injection
+name: aicraft_injection_molding
+contact: mosschan550@gmail.com
+label:
+  en_US: AICraft Injection Molding
+  zh_Hans: AICraft 注塑工艺优化
+  ja_JP: AICraft 射出成形プロセス最適化
+  pt_BR: AICraft Moldagem por Injeção
+description:
+  en_US: Physics-based first-shot process setup and defect-driven parameter tuning for injection molding.
+  zh_Hans: 基于物理经验公式与模糊专家规则的注塑首模参数推荐与试模缺陷调优工具。
+  ja_JP: 物理モデルとファジィ専門家ルールに基づく射出成形の初期条件推奨および不良対策チューニング。
+  pt_BR: Recomendação de parâmetros iniciais e ajuste de defeitos para moldagem por injeção com explicabilidade.
+icon: icon.svg
+icon_dark: icon-dark.svg
+tags:
+  - business
+  - productivity
+  - utilities
+network:
+  domains:
+    - aicraft4injection.com
+resource:
+  memory: 268435456
+  permission: {}
+plugins:
+  tools:
+    - provider/aicraft.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: "1.0.0"
+created_at: 2026-11-26T16:55:00+08:00
+privacy: PRIVACY.md
+repo: https://github.com/DreamwayChan/aicraft-mcp-server
+verified: false
